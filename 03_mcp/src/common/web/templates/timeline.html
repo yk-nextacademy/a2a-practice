@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import timeline %}
+{% block title %}타임라인{% endblock %}
+{% block crumb %}타임라인{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>타임라인</h1><p>{{ desc }}{% if cycle %} 사이클 #{{ cycle.id }} 기준.{% endif %}</p></div>
+</div>
+<div class="card">{{ timeline(events) }}</div>
+{% endblock %}

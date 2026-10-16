@@ -1,0 +1,130 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}개발 작업대{% endblock %}
+{% block crumb %}개발 작업대{% endblock %}
+{% block content %}
+<div data-desk="Dev">
+<div class="page-head">
+  <div>
+    <h1>개발 작업대</h1>
+    <p>Host(AI)가 MCP 도구로 넣은 발행 요청을 처리합니다. 티켓을 수정하고 발행하면 '완료 작업'으로 남고, Host가 이를 발견해 QA 시스템에 전달합니다. 이 시스템은 QA 시스템을 모릅니다.</p>
+  </div>
+</div>
+
+<div class="banner" id="actor-warning" hidden><strong>작업자 확인</strong><span data-warn-text></span></div>
+
+{% if not cycle_id %}
+<div class="card">{{ empty("요청이 없습니다", "Hub 웹(" ~ host_port ~ ")에서 '실습 시작'을 누르면 Host가 최초 버전 발행을 요청합니다. 데모는 Host의 AI가 도구로 직접 진행합니다.") }}</div>
+{% else %}
+{% if not order %}
+<div class="banner">
+  <strong>대기</strong>
+  <span>{% if cycle.mode == "demo" %}데모 사이클: Host의 AI가 MCP 도구로 직접 발행·수정합니다. 아래 정보는 관찰용입니다.
+    {% else %}지금은 개발부서 차례가 아닙니다. Host가 새 발행 요청을 넣으면 이곳에서 작업합니다.{% endif %}</span>
+</div>
+{% endif %}
+
+{% if order %}
+<div class="card">
+  <div class="card-head">
+    <div>
+      <div class="card-title">발행 요청 #{{ order.id }} <span class="mono muted" style="font-weight:500">v{{ next_version }}</span></div>
+      <div class="card-desc">
+        {% if order.kind == "initial" %}최초 버전을 발행합니다. 릴리즈 노트는 비워 두면 기본 문구로 발행됩니다.
+        {% elif shippable %}수정 완료된 티켓 {{ shippable|length }}건이 반영됩니다: <span class="mono">{{ shippable|map(attribute="key")|join(", ") }}</span>
+          {% set remaining = work|selectattr("status", "in", ["RECEIVED", "IN_PROGRESS"])|list %}
+          {% if remaining %}· 미완료 {{ remaining|length }}건(<span class="mono">{{ remaining|map(attribute="key")|join(", ") }}</span>)은 이번 버전에 반영되지 않고 상태가 유지됩니다. QA가 다시 이관하면 이어서 작업합니다.{% endif %}
+        {% else %}수정 완료된 티켓이 없습니다. 아래 티켓을 먼저 수정하세요.{% endif %}
+      </div>
+    </div>
+    <span class="badge badge-live">Host 요청</span>
+  </div>
+  <div class="card-body">
+    <textarea class="input" id="release-note" data-preserve rows="4" placeholder="릴리즈 노트 (반영 내용을 목록으로)"></textarea>
+    <div class="row mt" style="justify-content:space-between">
+      <button class="btn btn-ghost" data-draft-release {% if not shippable %}disabled{% endif %} title="수정 내역을 바탕으로 Claude가 초안을 작성합니다">AI 초안</button>
+      <button class="btn btn-primary" data-release="{{ next_version }}" {% if order.kind == "fix" and not shippable %}disabled{% endif %}>v{{ next_version }} 발행</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">접수된 티켓</div><div class="card-desc">Host가 MCP 도구(register_tickets)로 전달한 문제입니다. 착수하면 담당자로 지정됩니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if work %}
+    <table class="table">
+      <thead><tr><th>티켓</th><th style="width:40%">내용</th><th>심각도</th><th>상태</th><th>담당</th><th class="right">작업</th></tr></thead>
+      <tbody>
+      {% for t in work %}
+        <tr>
+          <td class="nowrap"><a class="link mono" href="/tickets/{{ t.key }}">{{ t.key }}</a><div class="mono small muted">{{ t.test_case_id }} · v{{ t.version_found }}</div></td>
+          <td><div>{{ t.title }}</div><div class="small muted">{{ t.fix_note if t.status == "FIXED" else t.description }}</div></td>
+          <td>{{ badge(t.severity) }}</td>
+          <td class="nowrap">{{ badge(t.status) }}</td>
+          <td class="nowrap">{{ t.assignee or "-" }}</td>
+          <td class="right nowrap">
+            {% if order and order.kind == "fix" and t.status in ("RECEIVED", "IN_PROGRESS") %}
+              <button class="btn btn-ghost btn-sm" data-start-fix="{{ t.key }}">{{ "착수" if t.status == "RECEIVED" else "내가 맡기" }}</button>
+              <button class="btn btn-primary btn-sm" data-fix="{{ t.key }}" data-title="{{ t.title }}" data-desc="{{ t.description or '' }}">수정 완료</button>
+            {% elif t.status == "FIXED" %}<span class="small muted">발행 대기</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("처리할 티켓 없음", "Host가 QA의 이관 결정을 전달하면 이곳에 접수됩니다.") }}{% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2 mt" style="align-items:start">
+  <div class="card">
+    <div class="card-head"><div><div class="card-title">Host 요청 이력</div><div class="card-desc">OPEN: 작업 중 · DONE: 완료, Host 회수 대기 · ACKED: Host가 QA에 전달 완료 · CANCELLED: 사이클 중단으로 취소</div></div></div>
+    <div class="card-body flush" style="margin-top:8px">
+      {% if orders %}
+      <table class="table"><tbody>
+      {% for o in orders %}
+        <tr><td class="mono">#{{ o.id }}</td><td class="small">{{ "최초 발행" if o.kind == "initial" else "수정 반영 발행" }}</td>
+          <td class="mono small">{{ "v" ~ o.outcome.version if o.outcome else "" }}</td>
+          <td>{{ badge({"OPEN": "PENDING", "DONE": "IN_PROGRESS", "ACKED": "DONE", "CANCELLED": "CANCELLED"}[o.status], o.status) }}</td></tr>
+      {% endfor %}
+      </tbody></table>
+      {% else %}{{ empty("요청 없음", "데모 사이클은 요청 없이 AI가 직접 처리합니다.") }}{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div><div class="card-title">발행 이력</div></div></div>
+    <div class="card-body flush" style="margin-top:8px">
+      {% if releases %}
+      <table class="table"><tbody>
+      {% for r in releases %}
+        <tr><td class="mono"><strong>v{{ r.version }}</strong></td><td class="mono small">{{ r.fixed_issue_keys|join(", ") or "최초" }}</td>
+          <td class="small">{{ r.released_by or "-" }}</td><td><a class="link mono small" href="/builds/{{ r.cycle_id }}/{{ r.version }}" target="_blank">build.json</a></td></tr>
+      {% endfor %}
+      </tbody></table>
+      {% else %}{{ empty("발행 이력 없음", "") }}{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="modal modal-lg" id="fix-dialog">
+  <div class="modal-body">
+    <h3>수정 완료</h3>
+    <p class="mono" data-key></p>
+    <div class="pre mt" data-desc style="max-height:140px;overflow:auto"></div>
+    <input type="hidden" name="key">
+    <div class="field"><label>수정 내역 (원인과 수정 내용)</label><textarea class="input" name="fix_note" rows="4"></textarea></div>
+  </div>
+  <div class="modal-foot" style="justify-content:space-between">
+    <button class="btn btn-ghost" data-draft-fix title="티켓 내용을 바탕으로 Claude가 초안을 작성합니다">AI 초안</button>
+    <div class="row">
+      <button class="btn btn-outline" data-close>취소</button>
+      <button class="btn btn-primary" data-submit-fix>수정 완료</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}

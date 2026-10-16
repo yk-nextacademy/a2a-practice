@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block actions %}
+  {% if order %}<span class="small muted">Host 검증 요청 #{{ order.id }} 처리 중</span>
+  {% else %}<span class="small muted">Host의 요청을 기다리는 중</span>{% endif %}
+{% endblock %}

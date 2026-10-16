@@ -1,0 +1,172 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty, result_bar, pipeline, timeline %}
+{% block title %}Overview{% endblock %}
+{% block crumb %}Overview{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Overview</h1>
+    <p>Hub가 Dev Agent와 QA Agent 사이에서 업무를 위임·라우팅하고 전체 흐름을 관제합니다. 데모는 에이전트가 스스로 일하고, 실습은 에이전트 뒤에서 부서원이 일합니다. Hub는 두 경우를 똑같이 Task로 다룹니다.</p>
+  </div>
+</div>
+
+{% if not cycle %}
+<div class="card">
+  <div class="empty">
+    <strong>아직 실행된 사이클이 없습니다</strong>
+    <span class="kbd">데모 실행</span>은 에이전트가 스스로 처리하고, <span class="kbd">실습 시작</span>은 부서원이 Dev 웹(8401)·QA 웹(8402)에서 일합니다. 어느 쪽이든 Hub는 Agent Card로 찾은 에이전트에게 Task를 위임합니다.
+  </div>
+</div>
+{% else %}
+{% set run = stats.last_run %}
+<div class="grid grid-4">
+  <div class="card card-body">
+    <div class="stat-label">사이클 상태</div>
+    <div class="stat-value">{{ cycle.status|status_label }}</div>
+    <div class="stat-foot">#{{ cycle.id }} · 검증 {{ cycle.iteration }}회 · {{ cycle.started_at|ymdhm }}</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">현재 버전</div>
+    <div class="stat-value mono" style="font-size:24px">v{{ cycle.current_version or "1.0.0" }}</div>
+    <div class="stat-foot">발행 {{ stats.releases }}건</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">최근 검증 통과율</div>
+    <div class="stat-value">{% if run %}{{ pct(run.passed, run.total) }}%{% else %}-{% endif %}</div>
+    <div class="stat-foot">{% if run %}v{{ run.version }} · {{ run.passed }} PASS / {{ run.failed }} FAIL{% else %}검증 전{% endif %}</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">미해결 이슈</div>
+    <div class="stat-value">{{ stats.open_issues }}</div>
+    <div class="stat-foot">누적 등록 {{ stats.total_issues }}건</div>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head">
+    <div>
+      <div class="card-title">사이클 진행</div>
+      <div class="card-desc">결함이 남아 있으면 검증 → 라우팅 → 수정 → 발행이 반복되고, 전체 통과 시 사람의 승인을 받습니다.</div>
+    </div>
+    {{ badge(cycle.status, cycle.status|status_label) }}
+  </div>
+  <div class="card-body" style="padding-top:24px">{{ pipeline(cycle, stages) }}</div>
+</div>
+
+<div class="grid grid-main mt" style="align-items:start">
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">Hub 판단 로그</div><div class="card-desc">에이전트 결과를 받을 때마다 Hub가 다음 행동을 결정한 기록 ({{ llm.label }})</div></div>
+      </div>
+      <div class="card-body flush" style="margin-top:8px">
+        {% if decisions %}
+        <table class="table">
+          <thead><tr><th>검증</th><th>행동</th><th>근거</th><th>판단 주체</th></tr></thead>
+          <tbody>
+          {% for d in decisions %}
+            <tr><td class="mono">#{{ d.iteration }}</td><td>{{ badge(d.action) }}</td><td class="small">{{ d.reason }}</td><td class="mono small muted nowrap">{{ d.decided_by }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}{{ empty("판단 기록 없음", "첫 검증 결과가 도착하면 기록됩니다.") }}{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">버전별 검증 결과</div><div class="card-desc">QA Agent가 반환한 test-report Artifact 기준</div></div>
+        <div class="legend"><span><i class="pass"></i>PASS</span><span><i class="fail"></i>FAIL</span></div>
+      </div>
+      <div class="card-body">
+        {% if releases %}
+        <div class="bars">
+          {% for r in releases %}
+          <a class="bar-row" href="/releases/{{ r.version }}{{ cycle_query }}">
+            <span class="mono">v{{ r.version }}</span>
+            {{ result_bar(r.passed, r.failed, r.total) }}
+            <span class="small right muted nowrap">{% if r.total %}{{ r.passed }} / {{ r.total }}{% else %}검증 대기{% endif %}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}{{ empty("릴리즈 없음", "") }}{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">이슈 현황</div><div class="card-desc">에이전트 Artifact로부터 Hub가 구성한 현황 (부서 DB 직접 조회 없음)</div></div>
+        <a class="btn btn-ghost btn-sm" href="/issues{{ cycle_query }}">전체 보기</a>
+      </div>
+      <div class="card-body flush" style="margin-top:8px">
+        {% if issues %}
+        <table class="table">
+          <thead><tr><th>이슈</th><th>제목</th><th>심각도</th><th>상태</th><th>발견 / 수정</th></tr></thead>
+          <tbody>
+          {% for i in issues %}
+            <tr class="clickable" data-href="/issues/{{ i.key }}{{ cycle_query }}">
+              <td class="mono nowrap">{{ i.key }}</td><td>{{ i.title }}</td><td>{{ badge(i.severity) }}</td><td>{{ badge(i.status) }}</td>
+              <td class="mono small nowrap">v{{ i.version_found }} / {{ i.fixed_in_version and "v" ~ i.fixed_in_version or "-" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}{{ empty("등록된 이슈 없음", "") }}{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">최근 A2A Task</div><div class="card-desc">위임한 업무와 상태</div></div>
+        <a class="btn btn-ghost btn-sm" href="/messages{{ cycle_query }}">Message Trace</a>
+      </div>
+      <div class="card-body flush" style="margin-top:8px">
+        {% if tasks %}
+        <ul class="timeline">
+          {% for t in tasks %}
+          <li style="display:block">
+            <div class="row" style="justify-content:space-between">
+              <span class="small"><strong>{{ t.agent.split()[0] }}</strong> <span class="mono muted">{{ t.skill }}</span></span>
+              {{ badge(t.state, t.state|lower|replace("_", "-")) }}
+            </div>
+            <div class="small muted" style="margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.last_message or "" }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}{{ empty("Task 없음", "") }}{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">최근 이벤트</div><div class="card-desc">실시간 갱신</div></div>
+        <a class="btn btn-ghost btn-sm" href="/timeline{{ cycle_query }}">전체 보기</a>
+      </div>
+      <div class="card-body flush" style="margin-top:8px">{{ timeline(events, compact=True, max=12) }}</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if cycles %}
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">사이클 이력</div><div class="card-desc">행을 선택하면 해당 사이클 기준으로 화면을 봅니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    <table class="table">
+      <thead><tr><th>사이클</th><th>모드</th><th>상태</th><th>최종 버전</th><th>검증</th><th>A2A Task</th><th>A2A 메시지</th><th>Hub 판단</th><th>시작</th><th>종료</th></tr></thead>
+      <tbody>
+        {% for c in cycles %}
+        <tr class="clickable" data-href="/?cycle={{ c.id }}">
+          <td class="mono">#{{ c.id }}</td>
+          <td class="small">{{ "실습" if c.mode == "manual" else "데모" }}</td>
+          <td>{{ badge(c.status, c.status|status_label) }}</td>
+          <td class="mono">{{ c.current_version and "v" ~ c.current_version or "-" }}</td>
+          <td>{{ c.iteration }}</td><td>{{ c.tasks }}</td><td>{{ c.messages }}</td>
+          <td class="mono small">{{ c.llm_mode }}</td>
+          <td class="small muted">{{ c.started_at|ymdhm }}</td><td class="small muted">{{ c.finished_at|ymdhm }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,105 @@
+{% from "_macros.html" import badge %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · {{ app.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body data-stream="/api/events/stream">
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">{{ app.mark }}</div>
+      <div>
+        <div class="brand-name">{{ app.name }}</div>
+        <div class="brand-sub">{{ app.sub }}</div>
+      </div>
+    </div>
+    {% for group, items in nav_groups %}
+    <nav class="nav">
+      <div class="nav-label">{{ group }}</div>
+      {% for key, href, label, tag in items %}
+      <a href="{{ href }}" class="{% if active == key %}active{% endif %}" {% if href.startswith("http") %}target="_blank" rel="noopener"{% endif %}>{{ label }}
+        {% if tag %}<span class="{{ 'badge badge-solid' if tag == '차례' else 'kbd' }}" {% if tag == '차례' %}style="height:18px"{% endif %}>{{ tag }}</span>{% endif %}</a>
+      {% endfor %}
+    </nav>
+    {% endfor %}
+    <div class="sidebar-foot">
+      <div class="row"><span>시스템</span><span>{{ app.system }}</span></div>
+      <div class="row"><span>LLM</span><span class="mono">{{ llm_label }}</span></div>
+      <div class="row"><span>실시간</span><span id="conn">연결 중</span></div>
+      <div class="row"><span>테마</span><button class="btn btn-ghost btn-sm" data-theme-toggle style="height:22px;padding:0 6px">전환</button></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumbs">
+        <span>{{ app.crumb }}</span><span class="sep">/</span>
+        <strong>{% block crumb %}{% endblock %}</strong>
+      </div>
+      <div id="cycle-status" data-live class="row">
+        {% if cycle %}
+          <span class="muted small">사이클 #{{ cycle.id }}</span>
+          <span class="badge badge-muted">{{ "실습" if cycle.mode == "manual" else "데모" }}</span>
+          {% if cycle.status %}{{ badge(cycle.status, cycle.status|status_label) }}{% endif %}
+        {% endif %}
+      </div>
+      <div class="spacer"></div>
+      <div id="activity" class="activity" style="width:240px">
+        <div class="small muted act-text" style="margin-bottom:4px"></div>
+        <div class="progress thin"><span style="width:0"></span></div>
+      </div>
+      {% if members %}
+      <label class="actor" title="작업 주체(부서원) 선택">
+        <span class="small muted">작업자</span>
+        <select class="select" data-actor>
+          <option value="">선택</option>
+          {% for m in members %}<option value="{{ m.name }}" data-dept="{{ m.dept }}">{{ m.name }} · {{ m.role }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+      <div id="actions" data-live class="row">{% block actions %}{% endblock %}</div>
+    </header>
+
+    <main class="content">
+      <div id="page" data-live>
+        {% if errors %}
+        <div class="banner"><strong>연동 장애</strong><span>{{ errors|join(" · ") }}. 해당 서비스의 데이터가 일부 표시되지 않습니다.</span></div>
+        {% endif %}
+        {% if cycle and cycle.error %}
+        <div class="banner"><strong>사이클 #{{ cycle.id }} 오류</strong><span>{{ cycle.error }}</span></div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</div>
+
+<dialog class="modal" id="confirm-dialog">
+  <div class="modal-body"><h3></h3><p></p></div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-confirm-ok>확인</button>
+  </div>
+</dialog>
+<dialog class="modal" id="abort-dialog">
+  <div class="modal-body">
+    <h3>진행 중인 사이클을 중단할까요?</h3>
+    <p>사이클이 '중단' 상태로 종료됩니다. 기록은 남습니다.</p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-action="work-abort">중단</button>
+  </div>
+</dialog>
+{% block dialogs %}{% endblock %}
+<div class="toasts"></div>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/workbench.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}Issues{% endblock %}
+{% block crumb %}Issues{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Issues</h1><p>QA MCP 서버의 이슈와 Dev MCP 서버의 티켓을 함께 봅니다. 이슈 내용은 AI 에이전트가 작성했습니다.</p></div>
+</div>
+<div class="card">
+  {% if issues %}
+  <table class="table">
+    <thead><tr><th>이슈</th><th>제목</th><th>심각도</th><th>QA 상태</th><th>Dev 티켓</th><th>테스트</th><th>발견</th><th>수정</th><th>갱신</th></tr></thead>
+    <tbody>
+      {% for i in issues %}
+      <tr class="clickable" data-href="/issues/{{ i.key }}{{ cycle_query }}">
+        <td class="mono nowrap">{{ i.key }}</td>
+        <td>{{ i.title }}</td>
+        <td>{{ badge(i.severity) }}</td>
+        <td>{{ badge(i.status) }}</td>
+        <td>{% if i.dev_status %}{{ badge(i.dev_status) }}{% else %}<span class="muted">미수신</span>{% endif %}</td>
+        <td class="mono">{{ i.test_case_id }}</td>
+        <td class="mono">v{{ i.version_found }}</td>
+        <td class="mono">{{ i.fixed_in_version and "v" ~ i.fixed_in_version or "-" }}</td>
+        <td class="small muted nowrap">{{ i.updated_at|ymdhm }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("이슈 없음", "검증에서 실패한 테스트가 있으면 이슈가 등록됩니다.") }}{% endif %}
+</div>
+{% endblock %}

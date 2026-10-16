@@ -1,0 +1,16 @@
+[project]
+name = "a2a-practice-02-api"
+version = "0.1.0"
+description = "Stage 2 - Dev/QA systems integrated via REST API and webhooks"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "httpx>=0.27",
+    "anthropic>=1.0",
+    "python-dotenv>=1.0",
+]
+
+[tool.uv]
+package = false

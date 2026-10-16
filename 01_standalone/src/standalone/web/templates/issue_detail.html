@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}{{ issue.key }}{% endblock %}
+{% block crumb %}Issues / {{ issue.key }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ issue.title }}</h1>
+    <p class="row wrap"><span class="mono">{{ issue.key }}</span>{{ badge(issue.severity) }}{{ badge(issue.status) }}</p>
+  </div>
+  <a class="btn btn-outline" href="/issues{{ cycle_query }}">목록</a>
+</div>
+<div class="grid grid-main">
+  <div class="stack">
+    <div class="card">
+      <div class="card-head"><div class="card-title">설명</div></div>
+      <div class="card-body"><div class="note">{{ issue.description }}</div></div>
+    </div>
+    {% if issue.fix_note %}
+    <div class="card">
+      <div class="card-head"><div class="card-title">수정 내역</div></div>
+      <div class="card-body"><div class="note">{{ issue.fix_note }}</div></div>
+    </div>
+    {% endif %}
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">상태 이력</div><div class="card-desc">누가 언제 상태를 바꿨는지 기록됩니다.</div></div></div>
+      <div class="card-body flush" style="margin-top:8px">
+        <table class="table">
+          <thead><tr><th>시각</th><th>담당</th><th>변경</th><th>메모</th></tr></thead>
+          <tbody>
+          {% for h in history %}
+            <tr>
+              <td class="mono small nowrap">{{ h.ts|hhmmss }}</td>
+              <td><strong>{{ h.actor }}</strong></td>
+              <td class="nowrap">{% if h.from_status %}<span class="muted">{{ h.from_status }}</span> → {% endif %}{{ badge(h.to_status) }}</td>
+              <td class="small muted">{{ h.note }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="card card-body" style="align-self:start">
+    <dl class="kv">
+      <dt>테스트케이스</dt><dd class="mono">{{ issue.test_case_id }}</dd>
+      <dt>발견 버전</dt><dd class="mono"><a class="link" href="/releases/{{ issue.version_found }}{{ cycle_query }}">v{{ issue.version_found }}</a></dd>
+      <dt>수정 버전</dt><dd class="mono">{% if issue.fixed_in_version %}<a class="link" href="/releases/{{ issue.fixed_in_version }}{{ cycle_query }}">v{{ issue.fixed_in_version }}</a>{% else %}-{% endif %}</dd>
+      <dt>등록</dt><dd>{{ issue.created_at|ymdhm }}</dd>
+      <dt>갱신</dt><dd>{{ issue.updated_at|ymdhm }}</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}

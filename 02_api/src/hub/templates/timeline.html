@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import timeline %}
+{% block title %}Timeline{% endblock %}
+{% block crumb %}Timeline{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Timeline</h1><p>업무 이벤트 로그입니다. 새 이벤트가 위에 실시간으로 추가됩니다.{% if cycle %} 사이클 #{{ cycle.id }} 기준.{% endif %}</p></div>
+</div>
+<div class="card">{{ timeline(events) }}</div>
+{% endblock %}

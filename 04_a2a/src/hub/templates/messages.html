@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}Message Trace{% endblock %}
+{% block crumb %}Message Trace{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Message Trace</h1>
+    <p>Hub가 주고받은 A2A 원문 기록입니다. 요청은 JSON-RPC(<span class="mono">SendStreamingMessage</span>), 응답은 SSE로 흘러온 Task·상태·Artifact 이벤트입니다.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><div class="card-title">A2A Tasks</div><div class="card-desc">위임한 업무 단위. 상태: submitted → working → completed / input-required</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if tasks %}
+    <table class="table">
+      <thead><tr><th>에이전트</th><th>스킬</th><th>상태</th><th>마지막 메시지</th><th>taskId / contextId</th><th>갱신</th></tr></thead>
+      <tbody>
+      {% for t in tasks %}
+        <tr>
+          <td class="nowrap"><strong>{{ t.agent }}</strong></td>
+          <td class="mono small">{{ t.skill }}</td>
+          <td>{{ badge(t.state) }}</td>
+          <td class="small" style="max-width:380px">{{ t.last_message or "" }}</td>
+          <td class="mono small muted">{{ (t.task_id or "")[:8] }} / {{ t.context_id }}</td>
+          <td class="mono small muted">{{ t.updated_at|hhmmss }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("Task 없음", "") }}{% endif %}
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">메시지</div><div class="card-desc">최신순. 행을 펼치면 요청·응답 원문을 볼 수 있습니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if messages %}
+    <table class="table">
+      <thead><tr><th>시각</th><th>대상</th><th>메서드</th><th style="width:55%">원문</th><th>상태</th><th class="right">소요</th></tr></thead>
+      <tbody>
+      {% for m in messages %}
+        <tr>
+          <td class="mono small nowrap">{{ m.ts[11:23] }}</td>
+          <td class="nowrap"><strong>{{ (m.agent or "-").split()[0] }}</strong></td>
+          <td class="mono small nowrap">{{ m.method }}{% if m.streaming %} <span class="badge badge-muted">SSE</span>{% endif %}</td>
+          <td>
+            <details class="log">
+              <summary class="small mono muted">{{ m.url }}{% if m.task_id %} · task {{ m.task_id[:8] }}{% endif %}</summary>
+              {% if m.request_body %}<div class="small muted">request</div><pre class="pre">{{ m.request_body }}</pre>{% endif %}
+              <div class="small muted" style="margin-top:8px">response</div><pre class="pre">{{ m.response_body or "(수신 중)" }}</pre>
+            </details>
+          </td>
+          <td class="mono small">{{ m.status or "..." }}</td>
+          <td class="mono small right nowrap">{% if m.duration_ms is not none %}{{ m.duration_ms }} ms{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("메시지 없음", "사이클을 시작하면 A2A 요청·응답이 기록됩니다.") }}{% endif %}
+  </div>
+</div>
+{% endblock %}

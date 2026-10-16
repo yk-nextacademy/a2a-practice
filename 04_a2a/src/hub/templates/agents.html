@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}Agents{% endblock %}
+{% block crumb %}Agents{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agents</h1>
+    <p>Hub는 주소만 알고 있습니다. 각 주소의 <span class="mono">/.well-known/agent-card.json</span>을 읽어 이름, 스킬, 엔드포인트, 지원 기능을 알아내고 스킬 ID로 업무를 라우팅합니다.</p>
+  </div>
+</div>
+
+<div class="grid grid-2" style="align-items:start">
+{% for a in agents %}
+  {% set c = a.card_obj %}
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title"><span class="svc-dot {{ '' if a.status == 'UP' else 'down' }}"></span>{{ a.name or a.url }}</div>
+        <div class="card-desc mono">{{ a.url }}/.well-known/agent-card.json</div>
+      </div>
+      {{ badge(a.status) }}
+    </div>
+    <div class="card-body">
+      {% if c %}
+      <p style="margin-top:0">{{ c.description }}</p>
+      <dl class="kv small">
+        <dt>제공</dt><dd>{{ (c.provider or {}).organization or "-" }}</dd>
+        <dt>버전</dt><dd class="mono">{{ c.version }}</dd>
+        <dt>엔드포인트</dt><dd class="mono">{% for i in c.supportedInterfaces %}{{ i.protocolBinding }} {{ i.url }}<br>{% endfor %}</dd>
+        <dt>기능</dt><dd>{% for k, v in (c.capabilities or {}).items() %}<span class="tag">{{ k }}={{ v|lower }}</span> {% endfor %}</dd>
+        <dt>응답 시간</dt><dd class="mono">{{ a.latency_ms }} ms · {{ a.checked_at|hhmmss }}</dd>
+      </dl>
+      <div class="divider"></div>
+      <div class="small muted" style="margin-bottom:8px">스킬</div>
+      {% for s in c.skills %}
+      <div class="skill">
+        <div class="row" style="justify-content:space-between"><strong>{{ s.name }}</strong><span class="mono small">{{ s.id }}</span></div>
+        <div class="small muted" style="margin-top:4px">{{ s.description }}</div>
+        <div class="row wrap" style="margin-top:6px">{% for t in s.tags %}<span class="tag">{{ t }}</span>{% endfor %}</div>
+      </div>
+      {% endfor %}
+      <details class="log mt"><summary class="small muted">Agent Card 원문</summary><pre class="pre">{{ c|pretty }}</pre></details>
+      {% else %}
+      {{ empty("Agent Card를 가져오지 못했습니다", a.error or "") }}
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+  <div class="card">{{ empty("등록된 에이전트 없음", "AGENT_URLS 설정을 확인하세요.") }}</div>
+{% endfor %}
+</div>
+{% endblock %}

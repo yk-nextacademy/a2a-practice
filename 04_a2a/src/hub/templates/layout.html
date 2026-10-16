@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block actions %}
+  <button class="btn btn-ghost btn-sm" data-dialog="reset-dialog" {% if running %}disabled{% endif %}>초기화</button>
+  {% if running %}
+    <button class="btn btn-outline btn-sm" data-dialog="abort-dialog" title="진행 중인 Task에 취소(CancelTask)를 보내고 사이클을 중단합니다">사이클 중단</button>
+  {% else %}
+    <button class="btn btn-outline" data-action="work-start" title="에이전트 뒤에서 부서원이 Dev 웹, QA 웹으로 일합니다">실습 시작</button>
+    <button class="btn btn-primary" data-action="start-cycle" title="에이전트가 스스로 전체 사이클을 진행합니다">데모 실행</button>
+  {% endif %}
+{% endblock %}
+{% block page_top %}
+  {% if pending_approvals and active != "approvals" %}
+  <div class="banner" style="justify-content:space-between;align-items:center">
+    <span><strong style="color:var(--foreground)">승인 대기 {{ pending_approvals }}건</strong>
+      <span>QA Agent가 릴리즈 승인 여부를 묻고 있습니다 (Task 상태: input-required).</span></span>
+    <a class="btn btn-primary btn-sm" href="/approvals{{ cycle_query }}">승인함으로 이동</a>
+  </div>
+  {% elif turn in ("Dev", "QA") %}
+  <div class="banner" style="justify-content:space-between;align-items:center">
+    <span><strong style="color:var(--foreground)">실습 진행 중 · {{ "검증부서" if turn == "QA" else "개발부서" }} 차례</strong>
+      <span>{{ working_task.agent if working_task else "" }} Task가 working 상태로 부서원의 작업을 기다립니다.
+        {% if working_task and working_task.last_message %}최근 진행: {{ working_task.last_message }}{% endif %}</span></span>
+    <a class="btn btn-primary btn-sm" href="{{ qa_web if turn == 'QA' else dev_web }}" target="_blank" rel="noopener">{{ "QA 웹" if turn == "QA" else "Dev 웹" }} 열기</a>
+  </div>
+  {% endif %}
+{% endblock %}
+{% block dialogs %}
+<dialog class="modal" id="reset-dialog">
+  <div class="modal-body">
+    <h3>데이터를 초기화할까요?</h3>
+    <p>Hub의 사이클, A2A 메시지 기록, 승인 내역과 Dev/QA Agent의 업무 데이터가 모두 삭제됩니다. 에이전트 등록 정보는 유지됩니다.</p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-action="reset">초기화</button>
+  </div>
+</dialog>
+{% endblock %}

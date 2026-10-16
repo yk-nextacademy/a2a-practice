@@ -1,0 +1,45 @@
+{% macro badge(value, label=None, sq=False) -%}
+<span class="badge badge-{{ value|tone }}{% if sq %} badge-sq{% endif %}">{{ label or value }}</span>
+{%- endmacro %}
+
+{% macro empty(title, desc) -%}
+<div class="empty"><strong>{{ title }}</strong>{{ desc }}</div>
+{%- endmacro %}
+
+{% macro result_bar(passed, failed, total) -%}
+{% if total %}
+<div class="bar" title="{{ passed }} PASS / {{ failed }} FAIL">
+  <span class="pass" style="width: {{ pct(passed, total) }}%"></span>
+  <span class="fail" style="width: {{ pct(failed, total) }}%"></span>
+</div>
+{% else %}<div class="bar"></div>{% endif %}
+{%- endmacro %}
+
+{% macro pipeline(cycle, stages) -%}
+{% set labels = {"RELEASING": "발행", "VERIFYING": "검증", "TRANSFERRING": "라우팅", "FIXING": "수정", "AWAITING_APPROVAL": "승인 대기", "APPROVED": "승인"} %}
+{% set subs = {"RELEASING": "Dev Agent", "VERIFYING": "QA Agent", "TRANSFERRING": "Hub", "FIXING": "Dev Agent", "AWAITING_APPROVAL": "사람", "APPROVED": "QA Agent"} %}
+{% set cur = stages.index(cycle.status) if cycle and cycle.status in stages else -1 %}
+<div class="pipeline">
+  {% for s in stages %}
+  {% set state = "done" if loop.index0 < cur else ("current" if loop.index0 == cur else "") %}
+  <div class="step {{ state }} {% if state == 'current' and cycle.status != 'APPROVED' %}live{% endif %}">
+    <div class="node">{{ loop.index }}</div>
+    <div class="label">{{ labels[s] }}</div>
+    <div class="sub">{{ subs[s] }}</div>
+  </div>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro timeline(events, compact=False, max=0) -%}
+<ul class="timeline {% if compact %}compact{% endif %}" data-timeline data-max="{{ max }}">
+  {% for e in events %}
+  <li>
+    <span class="ts">{{ e.ts|hhmmss }}</span>
+    <span class="actor">{{ e.actor }}</span>
+    <span>{{ e.message }}<span class="type">{{ e.type }}</span></span>
+  </li>
+  {% endfor %}
+</ul>
+{% if not events %}{{ empty("이벤트 없음", "사이클을 시작하면 이벤트가 실시간으로 표시됩니다.") }}{% endif %}
+{%- endmacro %}

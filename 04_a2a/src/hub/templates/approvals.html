@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}Approvals{% endblock %}
+{% block crumb %}Approvals{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Approvals</h1>
+    <p>QA Agent가 Task를 <span class="mono">input-required</span> 상태로 멈추고 승인 여부를 물으면 여기에 표시됩니다. 회신은 같은 Task(taskId, contextId)로 전달되어 작업이 재개됩니다.</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><div class="card-title">대기 중</div><div class="card-desc">승인 또는 반려를 선택하세요. 의견은 QA Agent의 approval Artifact에 기록됩니다.</div></div></div>
+  <div class="card-body">
+    {% for a in pending %}
+    {% set run = runs.get(a.version) %}
+    <div class="approval-box" data-approval="{{ a.id }}">
+      <div class="row" style="justify-content:space-between">
+        <div class="row"><strong class="mono">v{{ a.version }}</strong><span class="muted small">사이클 #{{ a.cycle_id }} · {{ a.agent }}</span></div>
+        {{ badge("INPUT_REQUIRED", "input-required") }}
+      </div>
+      <div class="mt"><div class="small muted">QA Agent의 질문</div><div>{{ a.question }}</div></div>
+      {% if a.brief %}<div class="mt"><div class="small muted">Hub 요약 ({{ llm.label }})</div><div class="note">{{ a.brief }}</div></div>{% endif %}
+      {% if run %}
+      <div class="mt row wrap small muted"><span>테스트 {{ run.passed }}/{{ run.total }} 통과</span><span>·</span><a class="link" href="/test-runs/{{ run.id }}">검증 결과 보기</a></div>
+      {% endif %}
+      <div class="mt small muted mono">task {{ a.task_id }}</div>
+      <textarea class="input mt" placeholder="의견 (선택)"></textarea>
+      <div class="row mt" style="justify-content:flex-end">
+        <button class="btn btn-outline" data-action="approval" data-decision="reject">반려</button>
+        <button class="btn btn-primary" data-action="approval" data-decision="approve">승인</button>
+      </div>
+    </div>
+    {% else %}
+    {{ empty("대기 중인 승인 요청이 없습니다", "전체 테스트가 통과하면 QA Agent가 승인을 요청합니다.") }}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head"><div class="card-title">처리 이력</div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if done %}
+    <table class="table">
+      <thead><tr><th>사이클</th><th>버전</th><th>결과</th><th>의견</th><th>요청</th><th>처리</th></tr></thead>
+      <tbody>
+      {% for a in done %}
+        <tr>
+          <td class="mono">#{{ a.cycle_id }}</td><td class="mono">v{{ a.version }}</td><td>{{ badge(a.status, a.status|status_label) }}</td>
+          <td class="small">{{ a.comment or "-" }}</td>
+          <td class="small muted">{{ a.requested_at|ymdhm }}</td><td class="small muted">{{ a.decided_at|ymdhm }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("처리 이력 없음", "") }}{% endif %}
+  </div>
+</div>
+{% endblock %}

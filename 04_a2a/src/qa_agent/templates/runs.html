@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty, result_bar %}
+{% block title %}검증 이력{% endblock %}
+{% block crumb %}검증 이력{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>검증 이력</h1><p>QA 시스템이 수행한 검증 전체 이력과 결정(이관 / 확정)입니다.</p></div>
+</div>
+<div class="card">
+  {% if runs %}
+  <table class="table">
+    <thead><tr><th>Run</th><th>사이클</th><th>버전</th><th>상태</th><th style="width:24%">결과</th><th>결정</th><th>시작</th><th>종료</th></tr></thead>
+    <tbody>
+    {% for r in runs %}
+      <tr class="clickable" data-href="/runs/{{ r.id }}">
+        <td class="mono">#{{ r.id }}</td>
+        <td class="mono small">#{{ r.cycle_id }} <span class="muted">{{ "실습" if r.mode == "manual" else "데모" }}</span></td>
+        <td class="mono">v{{ r.version }}</td>
+        <td>{{ badge(r.status) }}</td>
+        <td>{{ result_bar(r.passed, r.failed, r.total) }}</td>
+        <td class="small nowrap">{% if r.decision %}{{ "Dev 이관" if r.decision == "TRANSFERRED" else "버전 확정" }} <span class="muted">{{ r.decided_by }}</span>{% else %}-{% endif %}</td>
+        <td class="small muted nowrap">{{ r.started_at|ymdhm }}</td><td class="small muted nowrap">{{ r.finished_at|ymdhm }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("검증 이력 없음", "") }}{% endif %}
+</div>
+{% endblock %}

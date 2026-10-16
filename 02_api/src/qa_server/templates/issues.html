@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}이슈{% endblock %}
+{% block crumb %}이슈{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>이슈</h1><p>QA 시스템이 탐지한 결함(원본)입니다. 이관하면 Dev 시스템에 티켓 사본이 생깁니다.{% if run %} 사이클 #{{ run.cycle_id }} 기준.{% endif %}</p></div>
+</div>
+<div class="card">
+  {% if issues %}
+  <table class="table">
+    <thead><tr><th>이슈</th><th>제목</th><th>심각도</th><th>상태</th><th>등록</th><th>테스트</th><th>발견</th><th>수정</th><th>갱신</th></tr></thead>
+    <tbody>
+    {% for i in issues %}
+      <tr class="clickable" data-href="/issues/{{ i.key }}">
+        <td class="mono nowrap">{{ i.key }}</td><td>{{ i.title }}</td><td>{{ badge(i.severity) }}</td><td>{{ badge(i.status) }}</td>
+        <td class="nowrap">{{ i.reporter or "-" }}</td><td class="mono">{{ i.test_case_id }}</td><td class="mono">v{{ i.version_found }}</td>
+        <td class="mono">{{ i.fixed_in_version and "v" ~ i.fixed_in_version or "-" }}</td><td class="small muted nowrap">{{ i.updated_at|ymdhm }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("이슈 없음", "") }}{% endif %}
+</div>
+{% endblock %}

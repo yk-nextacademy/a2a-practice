@@ -1,0 +1,128 @@
+{% from "_macros.html" import badge %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · Release Desk</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body data-stream="/api/events/stream">
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">S{{ stage.no }}</div>
+      <div>
+        <div class="brand-name">Release Desk</div>
+        <div class="brand-sub">Stage {{ stage.no }} · {{ stage.name }}</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-label">Workspace</div>
+      {% for key, href, label in nav %}
+      <a href="{{ href }}{{ cycle_query }}" class="{% if active == key %}active{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="nav">
+      <div class="nav-label">실습</div>
+      {% for key, href, label, dept in nav_work %}
+      <a href="{{ href }}" class="{% if active == key %}active{% endif %}">{{ label }}
+        {% if turn == dept %}<span class="badge badge-solid" style="height:18px">차례</span>{% endif %}</a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">
+      <div class="row"><span>구조</span><span>{{ stage.desc.split(' · ')[0] }}</span></div>
+      <div class="row"><span>LLM</span><span class="mono">{{ llm.label }}</span></div>
+      <div class="row"><span>실시간</span><span id="conn">연결 중</span></div>
+      <div class="row"><span>테마</span><button class="btn btn-ghost btn-sm" data-theme-toggle style="height:22px;padding:0 6px">전환</button></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumbs">
+        <span>Stage {{ stage.no }}</span><span class="sep">/</span>
+        <strong>{% block crumb %}{% endblock %}</strong>
+      </div>
+      <div id="cycle-status" data-live class="row">
+        {% if cycle %}
+          <span class="muted small">사이클 #{{ cycle.id }}</span>
+          <span class="badge badge-muted">{{ "실습" if cycle.mode == "manual" else "데모" }}</span>
+          {{ badge(cycle.status, cycle.status|status_label) }}
+        {% endif %}
+      </div>
+      <div class="spacer"></div>
+      <div id="activity" class="activity" style="width:260px">
+        <div class="small muted act-text" style="margin-bottom:4px"></div>
+        <div class="progress thin"><span style="width:0"></span></div>
+      </div>
+      <label class="actor" title="작업 주체(부서원) 선택">
+        <span class="small muted">작업자</span>
+        <select class="select" data-actor>
+          <option value="">선택</option>
+          {% for dept, label in (("QA", "검증부서"), ("Dev", "개발부서")) %}
+          <optgroup label="{{ label }}">
+            {% for m in members if m.dept == dept %}<option value="{{ m.name }}" data-dept="{{ m.dept }}">{{ m.name }} · {{ m.role }}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </label>
+      <div id="actions" data-live class="row">
+        <button class="btn btn-ghost btn-sm" data-dialog="reset-dialog" {% if running or manual %}disabled{% endif %}
+          title="{{ '진행 중인 사이클이 있으면 초기화할 수 없습니다' if running or manual else '모든 데이터를 삭제합니다' }}">초기화</button>
+        {% if manual %}
+        <button class="btn btn-outline btn-sm" data-dialog="abort-dialog">실습 중단</button>
+        {% else %}
+        <button class="btn btn-outline" data-action="work-start" {% if running %}disabled{% endif %}>실습 시작</button>
+        {% endif %}
+        <button class="btn btn-primary" data-action="start-cycle" {% if running or manual %}disabled{% endif %}
+          title="정해진 루틴으로 전체 사이클을 자동 진행합니다">
+          {% if running %}<span class="spinner"></span>데모 실행 중{% else %}데모 실행{% endif %}
+        </button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div id="page" data-live>
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+</div>
+
+<dialog class="modal" id="reset-dialog">
+  <div class="modal-body">
+    <h3>데이터를 초기화할까요?</h3>
+    <p>모든 사이클, 릴리즈, 테스트 결과, 이슈, 이벤트가 삭제됩니다. 되돌릴 수 없습니다.</p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-action="reset">초기화</button>
+  </div>
+</dialog>
+<dialog class="modal" id="abort-dialog">
+  <div class="modal-body">
+    <h3>실습 사이클을 중단할까요?</h3>
+    <p>진행 중인 실습 사이클이 '중단' 상태로 종료됩니다. 기록은 남습니다.</p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-action="work-abort">중단</button>
+  </div>
+</dialog>
+<dialog class="modal" id="confirm-dialog">
+  <div class="modal-body"><h3></h3><p></p></div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-confirm-ok>확인</button>
+  </div>
+</dialog>
+{% block dialogs %}{% endblock %}
+<div class="toasts"></div>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/workbench.js"></script>
+</body>
+</html>

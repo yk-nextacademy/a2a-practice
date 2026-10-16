@@ -1,0 +1,186 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}검증 작업대{% endblock %}
+{% block crumb %}검증 작업대{% endblock %}
+{% block content %}
+<div data-desk="QA">
+<div class="page-head">
+  <div>
+    <h1>검증 작업대</h1>
+    <p>Dev 시스템이 발행을 통지하면 검증 항목이 생성됩니다. 담당 항목을 검증하고 문제를 이슈로 등록한 뒤, Dev 시스템으로 이관하거나 버전을 확정합니다.</p>
+  </div>
+  {% if run %}<a class="btn btn-outline" href="/runs/{{ run.id }}">검증 결과 상세</a>{% endif %}
+</div>
+
+<div class="banner" id="actor-warning" hidden><strong>작업자 확인</strong><span data-warn-text></span></div>
+
+{% if not run %}
+<div class="card">{{ empty("검증할 버전이 없습니다", "Dev 웹에서 버전을 발행하면 Webhook으로 통지되어 검증 항목이 생성됩니다.") }}</div>
+{% else %}
+{% if run.mode == "demo" %}
+<div class="banner"><strong>데모 검증</strong><span>정해진 루틴으로 자동 검증됩니다. 아래 정보는 관찰용입니다.</span></div>
+{% elif run.status != "RUNNING" %}
+<div class="banner">
+  <strong>{% if run.decision == "TRANSFERRED" %}개발부서 차례{% elif run.decision == "APPROVED" %}버전 확정{% elif run.status == "CANCELLED" %}중단{% else %}대기{% endif %}</strong>
+  <span>{% if run.decision == "TRANSFERRED" %}v{{ run.version }} 검증을 마치고 이슈를 Dev 시스템으로 이관했습니다 ({{ run.decided_by }}). 새 버전이 발행되면 다시 검증합니다.
+    {% elif run.decision == "APPROVED" %}v{{ run.version }}을(를) 확정했습니다 ({{ run.decided_by }}).
+    {% elif run.status == "CANCELLED" %}v{{ run.version }} 검증 실행이 취소되었습니다 (사이클 중단 또는 새 발행). 개발부서의 발행 통지를 기다립니다.
+    {% else %}개발부서의 발행 통지를 기다립니다.{% endif %}</span>
+</div>
+{% endif %}
+
+{% set judged = run.passed + run.failed %}
+{% set live = run.mode == "manual" and run.status == "RUNNING" %}
+<div class="grid grid-4">
+  <div class="card card-body">
+    <div class="stat-label">검증 대상</div>
+    <div class="stat-value mono" style="font-size:24px">v{{ run.version }}</div>
+    <div class="stat-foot">사이클 #{{ run.cycle_id }} · Run #{{ run.id }}</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">판정 진행</div>
+    <div class="stat-value">{{ judged }} / {{ run.total }}</div>
+    <div class="progress mt"><span style="width: {{ pct(judged, run.total) }}%"></span></div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">PASS / FAIL</div>
+    <div class="stat-value">{{ run.passed }} / {{ run.failed }}</div>
+    <div class="stat-foot">내 담당 <span data-mine-count>0</span>건</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">수정 확인 대기</div>
+    <div class="stat-value">{{ to_verify|length }}</div>
+    <div class="stat-foot">Dev가 이 버전에 반영했다고 통지한 이슈</div>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head">
+    <div><div class="card-title">검증 항목</div><div class="card-desc">'실행'은 Dev 시스템에서 내려받은 빌드로 테스트를 돌린 참고 결과입니다. 판정은 직접 합니다. FAIL은 이슈 등록과 함께 처리됩니다.</div></div>
+    <div class="tabs"><a href="#" data-filter="mine">내 항목</a><a href="#" data-filter="all">전체</a></div>
+  </div>
+  <div class="card-body flush" style="margin-top:8px">
+    <table class="table">
+      <thead><tr><th>항목</th><th>기능</th><th>이름</th><th>담당</th><th style="width:28%">실행 결과</th><th>판정</th><th class="right">작업</th></tr></thead>
+      <tbody>
+      {% for r in results %}
+        <tr data-assignee="{{ r.assignee or '' }}">
+          <td class="mono">{{ r.test_case_id }}</td>
+          <td>{{ r.feature }}</td>
+          <td>{{ r.name }}</td>
+          <td class="nowrap">{{ r.assignee or "-" }}</td>
+          <td>
+            {% if r.sim_log %}
+              {% set ok = r.sim_log.startswith("PASS") %}
+              <div class="small"><strong>{{ "PASS" if ok else "FAIL" }}</strong>{% if not ok %} <span class="muted mono">{{ (r.log or "").splitlines()[0] }}</span>{% endif %}</div>
+            {% elif r.log and run.mode == "demo" %}<span class="muted mono small">{{ r.log.splitlines()[0] }}</span>
+            {% else %}<span class="muted small">미실행</span>{% endif %}
+          </td>
+          <td class="nowrap">
+            {% if r.result == "PENDING" %}<span class="badge badge-outline" style="border-style:dashed">대기</span>
+            {% else %}{{ badge(r.result) }}{% if r.issue_key and r.result == "FAIL" %} <a class="link mono small" href="/issues/{{ r.issue_key }}">{{ r.issue_key }}</a>{% endif %}
+              <div class="small muted">{{ r.checked_by }}</div>
+              {% if r.sim_log and (r.sim_log.startswith("PASS")) != (r.result == "PASS") %}<div class="small"><strong>실행 결과와 다름</strong></div>{% endif %}{% endif %}
+          </td>
+          <td class="right nowrap">
+            {% if live %}
+            <button class="btn btn-ghost btn-sm" data-exec="{{ r.id }}">실행</button>
+            <button class="btn btn-outline btn-sm" data-pass="{{ r.id }}" {% if r.result == "PASS" %}disabled{% endif %}>PASS</button>
+            <button class="btn btn-outline btn-sm" data-fail="{{ r.id }}" data-tc="{{ r.test_case_id }}" data-name="{{ r.name }}"
+              data-feature="{{ r.feature }}" data-log="{{ r.log or '' }}" data-issue="{{ r.issue_key or '' }}" {% if r.result == "FAIL" %}disabled{% endif %}>FAIL</button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid grid-2 mt" style="align-items:start">
+  <div class="card">
+    <div class="card-head"><div><div class="card-title">수정 확인</div><div class="card-desc">Dev가 v{{ run.version }}에 반영했다고 통지한 이슈. 해당 항목을 검증해 확인합니다.</div></div></div>
+    <div class="card-body flush" style="margin-top:8px">
+      {% if to_verify %}
+      <table class="table">
+        <tbody>
+        {% for i in to_verify %}
+          <tr>
+            <td><a class="link mono" href="/issues/{{ i.key }}">{{ i.key }}</a> <span class="mono small muted">{{ i.test_case_id }}</span>
+              <div class="small">{{ i.title }}</div></td>
+            <td class="right nowrap">
+              {% if live %}
+              <button class="btn btn-outline btn-sm" data-verify="{{ i.key }}" data-ok="0">재현</button>
+              <button class="btn btn-primary btn-sm" data-verify="{{ i.key }}" data-ok="1">수정 확인</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}{{ empty("확인할 수정 이슈 없음", "") }}{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div><div class="card-title">이 버전에서 등록한 이슈</div><div class="card-desc">이관하면 Dev 시스템에 티켓으로 접수됩니다.</div></div></div>
+    <div class="card-body flush" style="margin-top:8px">
+      {% if found %}
+      <table class="table">
+        <tbody>
+        {% for i in found %}
+          <tr class="clickable" data-href="/issues/{{ i.key }}">
+            <td class="mono nowrap">{{ i.key }}</td><td class="small">{{ i.title }}<div class="muted">{{ i.reporter or "" }}</div></td>
+            <td>{{ badge(i.severity) }}</td><td>{{ badge(i.status) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}{{ empty("등록한 이슈 없음", "") }}{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if live %}
+<div class="actionbar">
+  <div>
+    <div class="card-title">검증 완료</div>
+    <div class="small muted">
+      {% if ready.pending %}판정 대기 {{ ready.pending }}건{% else %}모든 항목 판정 완료{% endif %}
+      · 수정 확인 대기 {{ ready.unverified }}건 · 이관 대상 이슈 {{ ready.open }}건(직전 발행에 반영되지 않은 이월 이슈 포함) · 미해결 이슈 {{ ready.unresolved }}건
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn btn-outline" data-transfer {% if not ready.can_transfer %}disabled{% endif %}
+      title="미해결 이슈를 Dev 시스템으로 넘깁니다 (POST /api/tickets)">Dev 이관</button>
+    <button class="btn btn-primary" data-approve {% if not ready.can_approve %}disabled{% endif %}
+      title="미해결 이슈가 없을 때 현재 버전을 확정합니다 (POST /api/webhooks/verification-completed)">버전 확정</button>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="modal modal-lg" id="issue-dialog">
+  <div class="modal-body">
+    <h3>이슈 등록</h3>
+    <p><span class="mono" data-tc></span> 항목을 FAIL로 판정하고 결함을 등록합니다.</p>
+    <div class="banner mt" data-linked hidden><strong>연결</strong><span>이 항목에는 미해결 이슈 <b></b>이(가) 있어 새 이슈 대신 기존 이슈에 연결됩니다.</span></div>
+    <input type="hidden" name="result_id">
+    <div class="field"><label>제목</label><input class="input" name="title" maxlength="80"></div>
+    <div class="field"><label>심각도</label>
+      <select class="select" name="severity"><option value="">선택</option>{% for s in severities %}<option>{{ s }}</option>{% endfor %}</select>
+      <span class="small muted">결제·매출 영향 Critical · 주요 기능 장애 Major · 불편 수준 Minor</span>
+    </div>
+    <div class="field"><label>설명 (재현 조건, 기대 결과, 실제 결과)</label><textarea class="input" name="description" rows="5"></textarea></div>
+  </div>
+  <div class="modal-foot" style="justify-content:space-between">
+    <button class="btn btn-ghost" data-draft-issue title="실행 로그를 근거로 Claude가 초안을 작성합니다">AI 초안</button>
+    <div class="row">
+      <button class="btn btn-outline" data-close>취소</button>
+      <button class="btn btn-primary" data-submit-issue>등록 후 FAIL 처리</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}

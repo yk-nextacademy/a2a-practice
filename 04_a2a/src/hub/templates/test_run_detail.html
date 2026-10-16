@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Run #{{ run.id }}{% endblock %}
+{% block crumb %}Test Runs / #{{ run.id }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Run #{{ run.id }} <span class="muted mono" style="font-weight:500">v{{ run.version }}</span></h1>
+    <p>{{ run.started_at|ymdhm }} 시작 · {{ run.passed }} PASS / {{ run.failed }} FAIL · 통과율 {{ pct(run.passed, run.total) }}%</p>
+  </div>
+  <a class="btn btn-outline" href="/test-runs">목록</a>
+</div>
+
+<div class="card">
+  <div class="card-head"><div><div class="card-title">테스트 매트릭스</div><div class="card-desc">채워진 칸이 실패한 테스트입니다.</div></div>{{ badge(run.status) }}</div>
+  <div class="card-body">
+    <div class="tc-grid">
+      {% for r in results %}<div class="tc {{ 'pass' if r.passed else 'fail' }}" title="{{ r.test_case_id }} {{ r.name }}">{{ r.test_case_id[3:] }}</div>{% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="card mt">
+  <table class="table">
+    <thead><tr><th>테스트케이스</th><th>기능</th><th>이름</th><th>결과</th><th style="width:45%">로그</th></tr></thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td class="mono">{{ r.test_case_id }}</td>
+        <td>{{ r.feature }}</td>
+        <td>{{ r.name }}</td>
+        <td>{{ badge("PASS" if r.passed else "FAIL") }}</td>
+        <td>{% if r.passed %}<span class="muted mono">{{ r.log }}</span>{% else %}<pre class="pre">{{ r.log }}</pre>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block actions %}
+  {% if active_cycle %}
+    <span class="small muted">{{ "실습" if active_cycle.mode == "manual" else "데모" }} 진행 중</span>
+    <button class="btn btn-outline btn-sm" data-dialog="abort-dialog">사이클 중단</button>
+  {% else %}
+    <button class="btn btn-outline" data-action="work-start">실습 시작</button>
+    <button class="btn btn-primary" data-action="start-cycle" title="정해진 루틴으로 전체 사이클을 자동 진행합니다">데모 실행</button>
+  {% endif %}
+{% endblock %}

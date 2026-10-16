@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, empty, result_bar %}
+{% block title %}v{{ release.version }}{% endblock %}
+{% block crumb %}Releases / v{{ release.version }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="mono">v{{ release.version }}</h1>
+    <p>발행 {{ release.released_at|ymdhm }} · 기능 {{ release.features|join(", ") }}</p>
+  </div>
+  <a class="btn btn-outline" href="/releases{{ cycle_query }}">목록</a>
+</div>
+
+<div class="grid grid-main">
+  <div class="stack">
+    <div class="card">
+      <div class="card-head"><div class="card-title">릴리즈 노트</div></div>
+      <div class="card-body"><div class="note">{{ release.release_note }}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">반영된 이슈</div><div class="card-desc">이 버전에서 수정되었다고 보고된 이슈</div></div></div>
+      <div class="card-body flush" style="margin-top:8px">
+        {% if fixed_issues %}
+        <table class="table">
+          <thead><tr><th>이슈</th><th>제목</th><th>수정 내역</th><th>상태</th></tr></thead>
+          <tbody>
+          {% for i in fixed_issues %}
+            <tr class="clickable" data-href="/issues/{{ i.key }}{{ cycle_query }}">
+              <td class="mono">{{ i.key }}</td><td>{{ i.title }}</td><td class="small muted">{{ i.fix_note }}</td><td>{{ badge(i.status) }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}{{ empty("반영 이슈 없음", "최초 릴리즈입니다.") }}{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-head"><div class="card-title">검증</div></div>
+      <div class="card-body">
+        {% for r in runs %}
+          <div class="row" style="justify-content:space-between"><a class="link" href="/test-runs/{{ r.id }}">Run #{{ r.id }}</a>{{ badge(r.status) }}</div>
+          <div class="mt">{{ result_bar(r.passed, r.failed, r.total) }}</div>
+          <div class="small muted" style="margin-top:6px">{{ r.passed }} PASS / {{ r.failed }} FAIL · 통과율 {{ pct(r.passed, r.total) }}%</div>
+        {% else %}<span class="muted">검증 대기</span>{% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><div class="card-title">이 버전에서 발견된 이슈</div></div></div>
+      <div class="card-body">
+        {% for i in found_issues %}
+          <div class="row" style="justify-content:space-between;padding:4px 0">
+            <a class="link mono" href="/issues/{{ i.key }}{{ cycle_query }}">{{ i.key }}</a>{{ badge(i.severity) }}
+          </div>
+        {% else %}<span class="muted">없음</span>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

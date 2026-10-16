@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}개발 작업대{% endblock %}
+{% block crumb %}개발 작업대{% endblock %}
+{% block content %}
+<div data-desk="Dev">
+<div class="page-head">
+  <div>
+    <h1>개발 작업대</h1>
+    <p>QA 시스템에서 이관된 문제(티켓)를 맡아 수정하고, 수정이 끝나면 차기 버전을 발행합니다. 발행하면 QA 시스템에 Webhook으로 통지됩니다.</p>
+  </div>
+</div>
+
+<div class="banner" id="actor-warning" hidden><strong>작업자 확인</strong><span data-warn-text></span></div>
+
+{% if not cycle %}
+<div class="card">{{ empty("진행 중인 사이클이 없습니다", "'실습 시작'은 개발부서원이 직접 진행하고, '데모 실행'은 정해진 루틴으로 자동 진행합니다.") }}</div>
+{% else %}
+{% if cycle.mode == "demo" %}
+<div class="banner"><strong>데모 사이클</strong><span>정해진 루틴으로 자동 진행됩니다. 아래 정보는 관찰용입니다.</span></div>
+{% elif cycle.status not in ("RELEASING", "FIXING") %}
+<div class="banner">
+  <strong>{% if cycle.status == "VERIFYING" %}검증부서 차례{% else %}{{ cycle.status|status_label }}{% endif %}</strong>
+  <span>{% if cycle.status == "VERIFYING" %}v{{ cycle.current_version }}을(를) QA 시스템에서 검증하고 있습니다. 이관되면 티켓이 여기에 접수됩니다.
+    {% else %}사이클 #{{ cycle.id }}이(가) 종료되었습니다.{% endif %}</span>
+</div>
+{% endif %}
+
+{% if cycle.mode == "manual" and cycle.status in ("RELEASING", "FIXING") %}
+<div class="card">
+  <div class="card-head">
+    <div>
+      <div class="card-title">버전 발행 <span class="mono muted" style="font-weight:500">v{{ next_version }}</span></div>
+      <div class="card-desc">
+        {% if not has_release %}최초 버전을 발행합니다. 릴리즈 노트는 비워 두면 기본 문구로 발행됩니다.
+        {% elif shippable %}수정 완료된 티켓 {{ shippable|length }}건이 반영됩니다: <span class="mono">{{ shippable|map(attribute="key")|join(", ") }}</span>
+          {% set remaining = work|selectattr("status", "in", ["RECEIVED", "IN_PROGRESS"])|list %}
+          {% if remaining %}· 미완료 {{ remaining|length }}건(<span class="mono">{{ remaining|map(attribute="key")|join(", ") }}</span>)은 다음 버전으로 넘어갑니다. 검증부서가 다시 이관해도 진행 상태와 담당자는 유지됩니다.{% endif %}
+        {% else %}수정 완료된 티켓이 없습니다. 아래 티켓을 먼저 수정하세요.{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="card-body">
+    <textarea class="input" id="release-note" data-preserve rows="4" placeholder="릴리즈 노트 (반영 내용을 목록으로)"></textarea>
+    <div class="row mt" style="justify-content:space-between">
+      <button class="btn btn-ghost" data-draft-release {% if not shippable %}disabled{% endif %} title="수정 내역을 바탕으로 Claude가 초안을 작성합니다">AI 초안</button>
+      <button class="btn btn-primary" data-release="{{ next_version }}" {% if has_release and not shippable %}disabled{% endif %}>v{{ next_version }} 발행</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">접수된 티켓</div><div class="card-desc">QA 시스템의 이관 요청(POST /api/tickets)으로 생성된 티켓입니다. 착수하면 담당자로 지정됩니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if work %}
+    <table class="table">
+      <thead><tr><th>티켓</th><th style="width:40%">내용</th><th>심각도</th><th>상태</th><th>담당</th><th class="right">작업</th></tr></thead>
+      <tbody>
+      {% for t in work %}
+        <tr>
+          <td class="nowrap"><a class="link mono" href="/tickets/{{ t.key }}">{{ t.key }}</a><div class="mono small muted">{{ t.test_case_id }} · v{{ t.version_found }}</div></td>
+          <td><div>{{ t.title }}</div><div class="small muted">{{ t.fix_note if t.status == "FIXED" else t.description }}</div></td>
+          <td>{{ badge(t.severity) }}</td>
+          <td class="nowrap">{{ badge(t.status) }}</td>
+          <td class="nowrap">{{ t.assignee or "-" }}</td>
+          <td class="right nowrap">
+            {% if cycle.mode == "manual" and cycle.status == "FIXING" and t.status in ("RECEIVED", "IN_PROGRESS") %}
+              <button class="btn btn-ghost btn-sm" data-start-fix="{{ t.key }}">{{ "착수" if t.status == "RECEIVED" else "내가 맡기" }}</button>
+              <button class="btn btn-primary btn-sm" data-fix="{{ t.key }}" data-title="{{ t.title }}" data-desc="{{ t.description or '' }}">수정 완료</button>
+            {% elif t.status == "FIXED" %}<span class="small muted">발행 대기</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("처리할 티켓 없음", "QA 시스템이 이관하면 이곳에 접수됩니다.") }}{% endif %}
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">이번 사이클 발행 이력</div><div class="card-desc">검증 결과는 QA 시스템이 가지고 있습니다. 전체 현황은 Hub 웹에서 봅니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if releases %}
+    <table class="table">
+      <thead><tr><th>버전</th><th>반영 티켓</th><th>발행자</th><th>확정</th><th>빌드</th><th>발행 시각</th></tr></thead>
+      <tbody>
+      {% for r in releases %}
+        <tr>
+          <td class="mono"><strong>v{{ r.version }}</strong></td>
+          <td class="mono small">{{ r.fixed_issue_keys|join(", ") or "최초 릴리즈" }}</td>
+          <td>{{ r.released_by or "-" }}</td>
+          <td>{% if r.approved_at %}{{ badge("APPROVED", "확정") }}{% else %}<span class="muted small">-</span>{% endif %}</td>
+          <td><a class="link mono small" href="/builds/{{ r.cycle_id }}/{{ r.version }}" target="_blank">build.json</a></td>
+          <td class="small muted">{{ r.released_at|ymdhm }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("발행 이력 없음", "") }}{% endif %}
+  </div>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block dialogs %}
+<dialog class="modal modal-lg" id="fix-dialog">
+  <div class="modal-body">
+    <h3>수정 완료</h3>
+    <p class="mono" data-key></p>
+    <div class="pre mt" data-desc style="max-height:140px;overflow:auto"></div>
+    <input type="hidden" name="key">
+    <div class="field"><label>수정 내역 (원인과 수정 내용)</label><textarea class="input" name="fix_note" rows="4"></textarea></div>
+  </div>
+  <div class="modal-foot" style="justify-content:space-between">
+    <button class="btn btn-ghost" data-draft-fix title="티켓 내용을 바탕으로 Claude가 초안을 작성합니다">AI 초안</button>
+    <div class="row">
+      <button class="btn btn-outline" data-close>취소</button>
+      <button class="btn btn-primary" data-submit-fix>수정 완료</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}

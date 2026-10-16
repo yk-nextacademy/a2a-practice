@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block actions %}
+  <button class="btn btn-ghost btn-sm" data-dialog="reset-dialog" {% if running %}disabled{% endif %}>초기화</button>
+  {% if running %}
+    <button class="btn btn-outline btn-sm" data-dialog="abort-dialog">사이클 중단</button>
+  {% else %}
+    <button class="btn btn-outline" data-action="work-start" title="부서원이 Dev 웹, QA 웹에서 직접 진행합니다">실습 시작</button>
+    <button class="btn btn-primary" data-action="start-cycle" title="정해진 루틴으로 전체 사이클을 자동 진행합니다">데모 실행</button>
+  {% endif %}
+{% endblock %}
+{% block dialogs %}
+<dialog class="modal" id="reset-dialog">
+  <div class="modal-body">
+    <h3>데이터를 초기화할까요?</h3>
+    <p>Dev Server와 QA Server의 모든 사이클, 릴리즈, 티켓, 검증 결과, 이슈, 이벤트, 연동 로그가 삭제됩니다. 되돌릴 수 없습니다.</p>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-outline" data-close>취소</button>
+    <button class="btn btn-primary" data-action="reset">초기화</button>
+  </div>
+</dialog>
+{% endblock %}

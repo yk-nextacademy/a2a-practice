@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block actions %}
+  {% if order %}<span class="small muted">Hub 위임 업무 #{{ order.id }} 처리 중 (Task working)</span>
+  {% else %}<span class="small muted">Hub의 Task를 기다리는 중</span>{% endif %}
+{% endblock %}

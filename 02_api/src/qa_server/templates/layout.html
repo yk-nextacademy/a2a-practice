@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block actions %}
+  {% if run and run.status == "RUNNING" %}
+    <span class="small muted">v{{ run.version }} {{ "실습 검증" if run.mode == "manual" else "자동 검증" }} 중</span>
+  {% else %}
+    <span class="small muted">개발부서의 발행 통지를 기다리는 중</span>
+  {% endif %}
+{% endblock %}

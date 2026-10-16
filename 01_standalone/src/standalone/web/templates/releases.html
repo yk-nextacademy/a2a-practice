@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, empty, result_bar %}
+{% block title %}Releases{% endblock %}
+{% block crumb %}Releases{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Releases</h1><p>개발부서가 발행한 버전과 검증 결과입니다.{% if cycle %} 사이클 #{{ cycle.id }} 기준.{% endif %}</p></div>
+</div>
+<div class="card">
+  {% if releases %}
+  <table class="table">
+    <thead><tr><th>버전</th><th>반영 이슈</th><th style="width:30%">검증 결과</th><th>통과율</th><th>발행 시각</th></tr></thead>
+    <tbody>
+      {% for r in releases %}
+      <tr class="clickable" data-href="/releases/{{ r.version }}{{ cycle_query }}">
+        <td class="mono"><strong>v{{ r.version }}</strong></td>
+        <td>
+          {% for k in r.fixed_issue_keys %}<span class="badge badge-outline badge-sq">{{ k }}</span> {% else %}<span class="muted">최초 릴리즈</span>{% endfor %}
+        </td>
+        <td>{{ result_bar(r.passed, r.failed, r.total) }}</td>
+        <td class="nowrap">{% if r.total %}{{ pct(r.passed, r.total) }}% <span class="muted small">({{ r.passed }}/{{ r.total }})</span>{% else %}<span class="muted">검증 대기</span>{% endif %}</td>
+        <td class="small muted">{{ r.released_at|ymdhm }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("릴리즈 없음", "사이클을 시작하면 v1.0.0이 발행됩니다.") }}{% endif %}
+</div>
+{% endblock %}

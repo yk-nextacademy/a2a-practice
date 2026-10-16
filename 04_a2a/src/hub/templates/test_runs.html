@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty, result_bar %}
+{% block title %}Test Runs{% endblock %}
+{% block crumb %}Test Runs{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Test Runs</h1><p>검증부서의 테스트 실행 이력입니다.</p></div>
+</div>
+<div class="card">
+  {% if runs %}
+  <table class="table">
+    <thead><tr><th>Run</th><th>버전</th><th>상태</th><th style="width:30%">결과</th><th>PASS</th><th>FAIL</th><th>시작</th><th>종료</th></tr></thead>
+    <tbody>
+      {% for r in runs %}
+      <tr class="clickable" data-href="/test-runs/{{ r.id }}">
+        <td class="mono">#{{ r.id }}</td>
+        <td class="mono">v{{ r.version }}</td>
+        <td>{{ badge(r.status) }}</td>
+        <td>{{ result_bar(r.passed, r.failed, r.total) }}</td>
+        <td>{{ r.passed }}</td><td>{{ r.failed }}</td>
+        <td class="small muted">{{ r.started_at|ymdhm }}</td><td class="small muted">{{ r.finished_at|ymdhm }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("테스트 실행 이력 없음", "") }}{% endif %}
+</div>
+{% endblock %}

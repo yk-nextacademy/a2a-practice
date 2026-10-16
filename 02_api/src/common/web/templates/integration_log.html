@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}연동 로그{% endblock %}
+{% block crumb %}연동 로그{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>연동 로그</h1><p>{{ desc }}{% if cycle %} 사이클 #{{ cycle.id }} 기준.{% endif %}</p></div>
+</div>
+<div class="card">
+  {% if logs %}
+  <table class="table">
+    <thead><tr><th>시각</th><th>방향</th><th>요청</th><th>상태</th><th class="right">소요</th></tr></thead>
+    <tbody>
+    {% for l in logs %}
+      <tr>
+        <td class="mono small nowrap">{{ l.ts[11:23] }}</td>
+        <td>{{ badge(l.direction) }}</td>
+        <td style="max-width:640px">
+          <details class="log">
+            <summary><span class="mono">{{ l.method }} {{ l.url }}</span>{% if l.attempt > 1 %} <span class="badge badge-muted">재시도 {{ l.attempt }}</span>{% endif %}</summary>
+            {% if l.request_body %}<div class="small muted">request</div><pre class="pre">{{ l.request_body }}</pre>{% endif %}
+            {% if l.response_body %}<div class="small muted" style="margin-top:8px">response</div><pre class="pre">{{ l.response_body }}</pre>{% endif %}
+            {% if l.error %}<div class="small muted" style="margin-top:8px">error</div><pre class="pre">{{ l.error }}</pre>{% endif %}
+          </details>
+        </td>
+        <td>{% if l.error %}{{ badge("FAIL", l.error[:24]) }}{% else %}<span class="mono">{{ l.status }}</span>{% endif %}</td>
+        <td class="mono small right">{{ l.duration_ms }} ms</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("호출 기록 없음", "") }}{% endif %}
+</div>
+{% endblock %}

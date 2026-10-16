@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}Agent Trace{% endblock %}
+{% block crumb %}Agent Trace{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agent Trace</h1>
+    <p>에이전트가 어떤 순서로 어떤 도구를 호출했는지 기록입니다. 흐름을 결정한 주체는 코드가 아니라 {{ "Claude" if llm.label != "mock" else "규칙 기반 플래너(mock)" }}입니다. 실습에서는 부서원이 끝낸 작업을 발견할 때마다 한 번씩 \"전달\" 실행이 기록됩니다.</p>
+  </div>
+</div>
+
+{% if cycle %}
+<div class="grid grid-4">
+  <div class="card card-body"><div class="stat-label">에이전트</div><div class="stat-value mono" style="font-size:18px">{{ cycle.llm_mode }}</div><div class="stat-foot">사이클 #{{ cycle.id }}</div></div>
+  <div class="card card-body"><div class="stat-label">LLM 턴</div><div class="stat-value">{{ cycle.turns or "-" }}</div><div class="stat-foot">Messages API 호출 수</div></div>
+  <div class="card card-body"><div class="stat-label">도구 호출</div><div class="stat-value">{{ cycle.tool_calls }}</div><div class="stat-foot">MCP tools/call</div></div>
+  <div class="card card-body"><div class="stat-label">토큰</div><div class="stat-value" style="font-size:22px">{{ "{:,}".format(cycle.input_tokens) }} / {{ "{:,}".format(cycle.output_tokens) }}</div><div class="stat-foot">입력 / 출력</div></div>
+</div>
+{% endif %}
+
+<div class="card mt">
+  {% if steps %}
+  <table class="table">
+    <thead><tr><th>#</th><th>턴</th><th>실행</th><th>주체</th><th>종류</th><th>도구</th><th style="width:52%">내용</th><th class="right">소요</th></tr></thead>
+    <tbody>
+    {% for s in steps %}
+      <tr>
+        <td class="mono small muted">{{ loop.index }}</td>
+        <td class="mono small">{{ s.turn }}</td>
+        <td class="small muted" style="max-width:180px">{% if loop.first or steps[loop.index0 - 1].run_label != s.run_label %}{{ s.run_label or "" }}{% endif %}</td>
+        <td class="nowrap"><strong>{{ s.actor }}</strong></td>
+        <td>
+          {% if s.kind == "tool_use" %}<span class="badge badge-outline">tool_use</span>
+          {% elif s.kind == "tool_result" %}<span class="badge {{ 'badge-danger' if s.is_error else 'badge-muted' }}">{{ "error" if s.is_error else "tool_result" }}</span>
+          {% elif s.kind == "text" %}<span class="badge badge-solid">text</span>
+          {% else %}<span class="badge badge-danger">{{ s.kind }}</span>{% endif %}
+        </td>
+        <td class="mono small nowrap">{{ s.tool or "" }}</td>
+        <td>
+          {% if s.kind == "text" or s.kind == "error" %}
+            <div class="note">{{ s.output }}</div>
+          {% else %}
+            <details class="log">
+              <summary class="small">{% if s.kind == "tool_use" %}arguments{% else %}result{% endif %}
+                <span class="muted mono">{{ ((s.input if s.kind == "tool_use" else s.output) or "")[:90]|replace("\n", " ") }}</span></summary>
+              <pre class="pre">{{ s.input if s.kind == "tool_use" else s.output }}</pre>
+            </details>
+          {% endif %}
+        </td>
+        <td class="mono small right nowrap">{% if s.duration_ms is not none and s.kind != "tool_use" %}{{ s.duration_ms }} ms{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("기록 없음", "사이클을 시작하면 에이전트의 판단과 도구 호출이 기록됩니다.") }}{% endif %}
+</div>
+{% endblock %}

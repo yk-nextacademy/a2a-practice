@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}티켓{% endblock %}
+{% block crumb %}티켓{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>티켓</h1><p>Host(AI)가 QA 시스템에서 받아 전달한 문제의 Dev 측 사본입니다. QA 시스템과는 직접 연결되어 있지 않습니다.{% if cycle %} 사이클 #{{ cycle.id }} 기준.{% endif %}</p></div>
+</div>
+<div class="card">
+  {% if tickets %}
+  <table class="table">
+    <thead><tr><th>티켓</th><th>제목</th><th>심각도</th><th>상태</th><th>담당</th><th>테스트</th><th>발견</th><th>반영</th><th>갱신</th></tr></thead>
+    <tbody>
+    {% for t in tickets %}
+      <tr class="clickable" data-href="/tickets/{{ t.key }}">
+        <td class="mono nowrap">{{ t.key }}</td><td>{{ t.title }}</td><td>{{ badge(t.severity) }}</td><td>{{ badge(t.status) }}</td>
+        <td class="nowrap">{{ t.assignee or "-" }}</td><td class="mono">{{ t.test_case_id }}</td><td class="mono">v{{ t.version_found }}</td>
+        <td class="mono">{{ t.fixed_in_version and "v" ~ t.fixed_in_version or "-" }}</td><td class="small muted nowrap">{{ t.updated_at|ymdhm }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("티켓 없음", "Host가 전달하면 생성됩니다.") }}{% endif %}
+</div>
+{% endblock %}

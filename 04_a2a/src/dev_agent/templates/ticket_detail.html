@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}{{ ticket.key }}{% endblock %}
+{% block crumb %}티켓 / {{ ticket.key }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ ticket.title }}</h1>
+    <p class="row wrap"><span class="mono">{{ ticket.key }}</span>{{ badge(ticket.severity) }}{{ badge(ticket.status) }}</p>
+  </div>
+  <a class="btn btn-outline" href="/tickets">목록</a>
+</div>
+<div class="grid grid-main">
+  <div class="stack">
+    <div class="card"><div class="card-head"><div class="card-title">QA 측 설명 (Hub 위임)</div></div><div class="card-body"><div class="note">{{ ticket.description }}</div></div></div>
+    {% if ticket.fix_note %}
+    <div class="card"><div class="card-head"><div class="card-title">수정 내역</div></div><div class="card-body"><div class="note">{{ ticket.fix_note }}</div></div></div>
+    {% endif %}
+    <div class="card">
+      <div class="card-head"><div class="card-title">티켓 이력 (Dev 시스템)</div></div>
+      <div class="card-body flush" style="margin-top:8px">
+        <table class="table">
+          <thead><tr><th>시각</th><th>담당</th><th>변경</th><th>메모</th></tr></thead>
+          <tbody>
+          {% for h in history %}
+            <tr>
+              <td class="mono small nowrap">{{ h.ts|hhmmss }}</td><td class="nowrap"><strong>{{ h.actor or "-" }}</strong></td>
+              <td class="nowrap">{% if h.from_status %}<span class="muted">{{ h.from_status }}</span> → {% endif %}{{ badge(h.to_status) }}</td>
+              <td class="small muted">{{ h.note }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="card card-body" style="align-self:start">
+    <dl class="kv">
+      <dt>테스트케이스</dt><dd class="mono">{{ ticket.test_case_id }}</dd>
+      <dt>발견 버전</dt><dd class="mono">v{{ ticket.version_found }}</dd>
+      <dt>반영 버전</dt><dd class="mono">{{ ticket.fixed_in_version and "v" ~ ticket.fixed_in_version or "-" }}</dd>
+      <dt>담당</dt><dd>{{ ticket.assignee or "-" }}</dd>
+      <dt>접수</dt><dd>{{ ticket.received_at|ymdhm }}</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}

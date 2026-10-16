@@ -1,0 +1,15 @@
+# secrets
+.env
+claudeapi.txt
+
+# runtime data
+**/data/*.db
+**/data/*.db-*
+**/data/*.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

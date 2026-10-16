@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, empty, result_bar, pipeline, timeline %}
+{% block title %}Overview{% endblock %}
+{% block crumb %}Overview{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Overview</h1>
+    <p>{{ stage.desc }}. 릴리즈 → 검증 → 이관 → 수정 사이클을 관제합니다.</p>
+  </div>
+</div>
+
+{% if not cycle %}
+<div class="card">
+  <div class="empty">
+    <strong>아직 실행된 사이클이 없습니다</strong>
+    <span class="kbd">데모 실행</span>은 v1.0.0 발행부터 승인까지 자동으로 진행하고,
+    <span class="kbd">실습 시작</span>은 부서원이 작업대에서 직접 발행·검증·수정하며 진행합니다.
+  </div>
+</div>
+{% else %}
+{% set run = stats.last_run %}
+{% if manual and manual.id == cycle.id %}
+<div class="banner" style="justify-content:space-between;align-items:center">
+  <span><strong style="color:var(--foreground)">실습 진행 중 · {{ "검증부서" if turn == "QA" else "개발부서" }} 차례</strong>
+    <span>{% if manual.status == "RELEASING" %}개발부서가 최초 버전을 발행해야 합니다.
+      {% elif manual.status == "VERIFYING" %}v{{ manual.current_version }} 검증 중입니다. 담당 항목을 판정하고 이관 또는 확정하세요.
+      {% else %}이관된 이슈를 수정하고 차기 버전을 발행하세요.{% endif %}</span></span>
+  <a class="btn btn-primary btn-sm" href="{{ '/qa' if turn == 'QA' else '/dev' }}">{{ "검증 작업대" if turn == "QA" else "개발 작업대" }}로 이동</a>
+</div>
+{% endif %}
+<div class="grid grid-4">
+  <div class="card card-body">
+    <div class="stat-label">사이클 상태</div>
+    <div class="stat-value">{{ cycle.status|status_label }}</div>
+    <div class="stat-foot">#{{ cycle.id }} · 반복 {{ cycle.iteration }}회 · {{ cycle.started_at|ymdhm }}</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">현재 버전</div>
+    <div class="stat-value mono" style="font-size:24px">{{ cycle.current_version and "v" ~ cycle.current_version or "-" }}</div>
+    <div class="stat-foot">{% if cycle.current_version %}발행 {{ stats.releases }}건{% else %}최초 버전 발행 전{% endif %}</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">최근 검증 통과율</div>
+    <div class="stat-value">{% if run %}{{ pct(run.passed, run.total) }}%{% else %}-{% endif %}</div>
+    <div class="stat-foot">{% if run %}v{{ run.version }} · {{ run.passed }} PASS / {{ run.failed }} FAIL{% else %}검증 전{% endif %}</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">미해결 이슈</div>
+    <div class="stat-value">{{ stats.open_issues }}</div>
+    <div class="stat-foot">누적 등록 {{ stats.total_issues }}건</div>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head">
+    <div>
+      <div class="card-title">사이클 진행</div>
+      <div class="card-desc">현재 단계가 강조됩니다. 결함이 남아 있으면 검증 → 이관 → 수정 → 발행이 반복됩니다.</div>
+    </div>
+    {{ badge(cycle.status, cycle.status|status_label) }}
+  </div>
+  <div class="card-body" style="padding-top:24px">{{ pipeline(cycle, stages) }}</div>
+</div>
+
+<div class="grid grid-main mt" style="align-items:start">
+  <div class="stack">
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">버전별 검증 결과</div>
+        <div class="card-desc">테스트케이스 12건 기준</div>
+      </div>
+      <div class="legend"><span><i class="pass"></i>PASS</span><span><i class="fail"></i>FAIL</span></div>
+    </div>
+    <div class="card-body">
+      {% if releases %}
+      <div class="bars">
+        {% for r in releases %}
+        <a class="bar-row" href="/releases/{{ r.version }}{{ cycle_query }}">
+          <span class="mono">v{{ r.version }}</span>
+          {{ result_bar(r.passed, r.failed, r.total) }}
+          <span class="small right muted nowrap">{% if r.total %}{{ r.passed }} / {{ r.total }}{% else %}검증 대기{% endif %}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}{{ empty("릴리즈 없음", "") }}{% endif %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div><div class="card-title">이슈 현황</div><div class="card-desc">발견 → 이관 → 수정 → 검증 완료까지의 상태</div></div>
+      <a class="btn btn-ghost btn-sm" href="/issues{{ cycle_query }}">전체 보기</a>
+    </div>
+    <div class="card-body flush" style="margin-top:8px">
+      {% if issues %}
+      <table class="table">
+        <thead><tr><th>이슈</th><th>제목</th><th>심각도</th><th>상태</th><th>발견 / 수정</th></tr></thead>
+        <tbody>
+        {% for i in issues %}
+          <tr class="clickable" data-href="/issues/{{ i.key }}{{ cycle_query }}">
+            <td class="mono nowrap">{{ i.key }}</td><td>{{ i.title }}</td><td>{{ badge(i.severity) }}</td><td>{{ badge(i.status) }}</td>
+            <td class="mono small nowrap">v{{ i.version_found }} / {{ i.fixed_in_version and "v" ~ i.fixed_in_version or "-" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}{{ empty("등록된 이슈 없음", "") }}{% endif %}
+    </div>
+  </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div><div class="card-title">최근 이벤트</div><div class="card-desc">실시간 갱신</div></div>
+      <a class="btn btn-ghost btn-sm" href="/timeline{{ cycle_query }}">전체 보기</a>
+    </div>
+    <div class="card-body flush" style="margin-top:8px">{{ timeline(events, compact=True, max=12) }}</div>
+  </div>
+</div>
+{% endif %}
+
+{% if cycles %}
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">사이클 이력</div><div class="card-desc">행을 선택하면 해당 사이클 기준으로 화면을 봅니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    <table class="table">
+      <thead><tr><th>사이클</th><th>모드</th><th>상태</th><th>최종 버전</th><th>반복</th><th>릴리즈</th><th>이슈</th><th>LLM</th><th>시작</th><th>종료</th></tr></thead>
+      <tbody>
+        {% for c in cycles %}
+        <tr class="clickable" data-href="/?cycle={{ c.id }}">
+          <td class="mono">#{{ c.id }}</td>
+          <td class="small">{{ "실습" if c.mode == "manual" else "데모" }}</td>
+          <td>{{ badge(c.status, c.status|status_label) }}</td>
+          <td class="mono">{{ c.current_version and "v" ~ c.current_version or "-" }}</td>
+          <td>{{ c.iteration }}</td><td>{{ c.releases }}</td><td>{{ c.issues }}</td>
+          <td class="mono small">{{ c.llm_mode }}</td>
+          <td class="small muted">{{ c.started_at|ymdhm }}</td><td class="small muted">{{ c.finished_at|ymdhm }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

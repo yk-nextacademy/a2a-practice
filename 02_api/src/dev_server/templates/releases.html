@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}릴리즈{% endblock %}
+{% block crumb %}릴리즈{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>릴리즈</h1><p>Dev 시스템이 발행한 버전 전체 이력입니다. 빌드 산출물은 QA 시스템이 build_url로 내려받습니다.</p></div>
+</div>
+<div class="card">
+  {% if releases %}
+  <table class="table">
+    <thead><tr><th>사이클</th><th>버전</th><th>반영 티켓</th><th>릴리즈 노트</th><th>발행자</th><th>확정</th><th>발행 시각</th></tr></thead>
+    <tbody>
+    {% for r in releases %}
+      <tr>
+        <td class="mono small">#{{ r.cycle_id }} <span class="muted">{{ "실습" if r.mode == "manual" else "데모" }}</span></td>
+        <td class="mono"><strong>v{{ r.version }}</strong></td>
+        <td class="mono small">{{ r.fixed_issue_keys|join(", ") or "-" }}</td>
+        <td class="small" style="max-width:360px"><div class="note">{{ r.release_note }}</div></td>
+        <td class="nowrap">{{ r.released_by or "-" }}</td>
+        <td>{% if r.approved_at %}{{ badge("APPROVED", "확정") }}{% endif %}</td>
+        <td class="small muted nowrap">{{ r.released_at|ymdhm }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}{{ empty("발행 이력 없음", "") }}{% endif %}
+</div>
+{% endblock %}

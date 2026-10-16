@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import badge, empty %}
+{% block title %}Integration{% endblock %}
+{% block crumb %}Integration{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Integration</h1><p>서비스 상태와 Dev ↔ QA 간 REST 호출 기록입니다. 서로의 URL과 스키마를 알고 직접 호출하는 구조를 확인할 수 있습니다.</p></div>
+</div>
+
+<div class="grid grid-4">
+  {% for name, h in health.items() %}
+  <div class="card card-body">
+    <div class="svc"><span class="stat-label"><span class="svc-dot {{ 'down' if h.status != 'UP' }}"></span>{{ name }} Server</span>{{ badge(h.status) }}</div>
+    <div class="stat-value" style="font-size:22px">{% if h.status == 'UP' %}{{ h.latency_ms }} ms{% else %}-{% endif %}</div>
+    <div class="stat-foot mono">{{ dev_url if name == 'Dev' else qa_url }}</div>
+  </div>
+  {% endfor %}
+  <div class="card card-body">
+    <div class="stat-label">서비스 간 호출</div>
+    <div class="stat-value">{{ summary.calls }}</div>
+    <div class="stat-foot">평균 {{ summary.avg_ms }} ms</div>
+  </div>
+  <div class="card card-body">
+    <div class="stat-label">호출 실패</div>
+    <div class="stat-value">{{ summary.errors }}</div>
+    <div class="stat-foot">재시도 포함, 최대 3회</div>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">연동 계약 (API 스펙)</div><div class="card-desc">양쪽 개발자가 사전에 합의해야 하는 엔드포인트</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    <table class="table">
+      <thead><tr><th>호출 방향</th><th>Method / Path</th><th>시점</th></tr></thead>
+      <tbody>
+        <tr><td>Dev → QA</td><td class="mono">POST /api/webhooks/release-published</td><td class="muted">버전 발행 직후 (데모: 자동 / 실습: 개발부서원이 발행)</td></tr>
+        <tr><td>QA → Dev</td><td class="mono">GET /builds/{cycle}/{version}</td><td class="muted">빌드 다운로드 (데모: 검증 시작 시 / 실습: 첫 '실행' 시)</td></tr>
+        <tr><td>QA → Dev</td><td class="mono">POST /api/tickets</td><td class="muted">문제 이관 (데모: 실패 시 자동 / 실습: 검증부서원의 Dev 이관)</td></tr>
+        <tr><td>QA → Dev</td><td class="mono">POST /api/webhooks/verification-completed</td><td class="muted">버전 확정 통지 (데모: 전체 통과 시 / 실습: 검증부서원의 버전 확정)</td></tr>
+        <tr><td>Dev → QA</td><td class="mono">POST /api/webhooks/cycle-cancelled</td><td class="muted">사이클 중단 통지 (Hub 또는 Dev 웹의 사이클 중단 시, QA는 진행 중인 검증 실행을 취소)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt">
+  <div class="card-head"><div><div class="card-title">호출 로그</div><div class="card-desc">out: 호출한 쪽 기록 · in: 호출받은 쪽 기록. 행을 펼치면 요청·응답 본문을 볼 수 있습니다.</div></div></div>
+  <div class="card-body flush" style="margin-top:8px">
+    {% if logs %}
+    <table class="table">
+      <thead><tr><th>시각</th><th>기록</th><th>방향</th><th>요청</th><th>상태</th><th class="right">소요</th></tr></thead>
+      <tbody>
+      {% for l in logs %}
+        <tr>
+          <td class="mono small nowrap">{{ l.ts[11:23] }}</td>
+          <td><strong>{{ l.service }}</strong></td>
+          <td>{{ badge(l.direction) }}</td>
+          <td style="max-width:560px">
+            <details class="log">
+              <summary><span class="mono">{{ l.method }} {{ l.url }}</span>{% if l.attempt > 1 %} <span class="badge badge-muted">재시도 {{ l.attempt }}</span>{% endif %}</summary>
+              {% if l.request_body %}<div class="small muted">request</div><pre class="pre">{{ l.request_body }}</pre>{% endif %}
+              {% if l.response_body %}<div class="small muted" style="margin-top:8px">response</div><pre class="pre">{{ l.response_body }}</pre>{% endif %}
+              {% if l.error %}<div class="small muted" style="margin-top:8px">error</div><pre class="pre">{{ l.error }}</pre>{% endif %}
+            </details>
+          </td>
+          <td>{% if l.error %}{{ badge("FAIL", l.error[:24]) }}{% else %}<span class="mono">{{ l.status }}</span>{% endif %}</td>
+          <td class="mono small right">{{ l.duration_ms }} ms</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}{{ empty("호출 기록 없음", "사이클을 시작하면 서비스 간 호출이 기록됩니다.") }}{% endif %}
+  </div>
+</div>
+{% endblock %}

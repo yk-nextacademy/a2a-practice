@@ -1,0 +1,15 @@
+[project]
+name = "a2a-practice-01-standalone"
+version = "0.1.0"
+description = "Stage 1 - Standalone monolithic release/QA web service"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "anthropic>=1.0",
+    "python-dotenv>=1.0",
+]
+
+[tool.uv]
+package = false
